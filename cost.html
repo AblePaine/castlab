@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Epoxy Project Cost Calculator — CastLab</title>
+<meta name="description" content="Resin cost per project and per layer from your pour volume and whatever you pay, for any brand, any pack size, any currency.">
+<link rel="stylesheet" href="assets/castlab.css">
+</head>
+<body>
+<header class="site">
+  <a class="brand" href="index.html">CastLab</a>
+  <nav>
+    <a href="mix-ratio.html">Mix ratio</a>
+    <a href="pour-volume.html">Pour volume</a>
+    <a href="deep-pour.html">Deep pour</a>
+    <a href="pigment.html">Pigment</a>
+    <a href="cost.html" aria-current="page">Cost</a>
+  </nav>
+</header>
+<main>
+  <h1>Project cost</h1>
+  <p class="why">Most epoxy cost calculators only know one brand's kits. This one works for any product. Enter what you paid and the size of the pack, and it gives you the cost per litre, the cost of this pour and of each layer, and how many packs you need to buy. That also means you can compare two sellers on the same terms.</p>
+
+  <form class="calc" id="f" novalidate>
+    <fieldset>
+      <legend>How much epoxy</legend>
+      <div class="row two">
+        <label>Pour volume <span class="hint">Exact volume. Get it from the <a href="pour-volume.html">pour volume</a> page.</span>
+          <input id="vol" type="number" inputmode="decimal" min="0" step="any" value="3000"></label>
+        <label>Unit
+          <select id="volU"><option value="mL">mL</option><option value="L">L</option><option value="flOz">US fl oz</option><option value="gal">US gal</option></select></label>
+      </div>
+      <div class="row two">
+        <label>Waste margin, % <sup><a href="#n2">2</a></sup> <input id="margin" type="number" inputmode="decimal" min="0" step="any" value="10"></label>
+        <label>Layers <input id="layers" type="number" inputmode="numeric" min="1" step="1" value="1"></label>
+      </div>
+    </fieldset>
+    <fieldset>
+      <legend>What you pay <sup><a href="#n1">1</a></sup></legend>
+      <div class="row three">
+        <label>Price <input id="price" type="number" inputmode="decimal" min="0" step="any" value="120"></label>
+        <label>for a pack of <input id="pack" type="number" inputmode="decimal" min="0" step="any" value="1"></label>
+        <label>Pack unit
+          <select id="packU"><option value="gal">US gal</option><option value="qt">US qt</option><option value="L">L</option><option value="flOz">US fl oz</option><option value="mL">mL</option></select></label>
+      </div>
+      <div class="row">
+        <label>Currency symbol
+          <select id="cur"><option>$</option><option>€</option><option>£</option><option>¥</option><option value="">(none)</option></select></label>
+      </div>
+    </fieldset>
+  </form>
+
+  <section class="results" id="out" aria-live="polite"></section>
+
+  <h2>Notes</h2>
+  <ol class="fn">
+    <li id="n1">"Pack" means the combined A + B volume, so a "1 gallon kit" is 1 gallon of mixed epoxy. Some kits are named after the size of Part A alone, or sold by weight. If yours is, enter the real combined volume. The data sheet or the label on each bottle will have it.</li>
+    <li id="n2">The margin covers resin left in cups and on sticks, small leaks, and wood soak-in. There's no standard figure. Common advice runs from 5 to 15%. The exact-volume cost is shown on its own so you can see what the margin adds.</li>
+    <li>This covers resin only. Pigment, tape, mold release, sandpaper, and finish are extra.</li>
+  </ol>
+
+  <aside class="safety">
+    <h2>Safety</h2>
+    <ul>
+      <li>Work in a ventilated space. Wear an organic-vapour respirator, nitrile gloves, and eye protection. Uncured epoxy is a skin sensitiser, and an allergy builds with every exposure.</li>
+      <li>Runaway exotherm is a documented fire risk. Don't save money by pouring deeper than the product is rated for. Use the <a href="deep-pour.html">deep-pour planner</a>.</li>
+      <li>Not food-safe unless the specific product is certified for food contact and fully cured to its data sheet.</li>
+    </ul>
+  </aside>
+</main>
+<footer class="site-foot">CastLab calculates; it does not replace your product's technical or safety data sheet. Formulas: <a href="SPEC.md">SPEC.md</a>.</footer>
+
+<script src="assets/castlab.js"></script>
+<script>
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  var f = function (x, dp) { return x.toLocaleString(undefined, { minimumFractionDigits: dp, maximumFractionDigits: dp }); };
+  var form = $('f');
+  var q = new URLSearchParams(location.search);
+  if (q.get('ml')) { $('vol').value = q.get('ml'); $('volU').value = 'mL'; }
+  if (q.get('layers')) $('layers').value = q.get('layers');
+  if (q.get('margin')) $('margin').value = q.get('margin');
+
+  function run() {
+    var c = $('cur').value;
+    var m = function (x) { return c + f(x, 2); };
+    try {
+      var r = CastLab.projectCost({
+        volumeMl: CastLab.volumeToMl($('vol').value, $('volU').value),
+        price: $('price').value, packSize: $('pack').value, packUnit: $('packU').value,
+        marginPct: $('margin').value || 0, layers: $('layers').value || 1
+      });
+      $('out').innerHTML = '<div class="cards">' +
+        '<div class="card"><h3>This project</h3><div class="big">' + m(r.projectCost) + '</div>' +
+        '<div class="sub">' + f(r.plannedMl / 1000, 3) + ' L with margin · ' + m(r.exactCost) + ' without</div></div>' +
+        '<div class="card"><h3>Per layer</h3><div class="big">' + m(r.perLayerCost) + '</div>' +
+        '<div class="sub">' + r.layers + ' layer' + (r.layers === 1 ? '' : 's') + ' of ' + f(r.perLayerMl, 0) + ' mL</div></div>' +
+        '<div class="card"><h3>Packs to buy</h3><div class="big">' + r.packs + '</div>' +
+        '<div class="sub">Spend ' + m(r.packSpend) + ' · ' + f(r.leftoverMl, 0) + ' mL left over</div></div>' +
+        '<div class="card"><h3>Unit price</h3><div class="big">' + m(r.perL) + ' / L</div>' +
+        '<div class="sub">' + m(r.perGal) + ' / US gal · ' + c + f(r.perMl * 100, 2) + ' per 100 mL</div></div>' +
+        '</div>';
+    } catch (e) {
+      $('out').innerHTML = '<p class="msg err">' + e.message + '</p>';
+    }
+  }
+  form.addEventListener('input', run);
+  form.addEventListener('change', run);
+  run();
+})();
+</script>
+</body>
+</html>

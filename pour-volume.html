@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Epoxy Pour Volume Calculator — CastLab</title>
+<meta name="description" content="Mold dimensions to exact epoxy volume for rectangles, cylinders and river tables, with wood displacement and the resin/hardener split.">
+<link rel="stylesheet" href="assets/castlab.css">
+</head>
+<body>
+<header class="site">
+  <a class="brand" href="index.html">CastLab</a>
+  <nav>
+    <a href="mix-ratio.html">Mix ratio</a>
+    <a href="pour-volume.html" aria-current="page">Pour volume</a>
+    <a href="deep-pour.html">Deep pour</a>
+    <a href="pigment.html">Pigment</a>
+    <a href="cost.html">Cost</a>
+  </nav>
+</header>
+<main>
+  <h1>Pour volume</h1>
+  <p class="why">Mix too little and you end up mixing a second batch mid-pour, which leaves a visible line where the batches meet. Mix too much and you've wasted the most expensive thing in the shop. The volume is just the mold's footprint times the depth, minus whatever wood or objects are sitting in it. This page does that geometry exactly and keeps the waste allowance as a separate, visible line.</p>
+
+  <form class="calc" id="f" novalidate>
+    <fieldset>
+      <legend>Shape</legend>
+      <div class="seg">
+        <label><input type="radio" name="shape" value="rect" checked> Rectangle</label>
+        <label><input type="radio" name="shape" value="cyl"> Cylinder</label>
+        <label><input type="radio" name="shape" value="river"> River table</label>
+      </div>
+    </fieldset>
+    <fieldset>
+      <div class="row">
+        <label>Units
+          <select id="unit">
+            <option value="mm">mm</option>
+            <option value="cm" selected>cm</option>
+            <option value="m">m</option>
+            <option value="in">inches</option>
+            <option value="ft">feet</option>
+          </select>
+        </label>
+      </div>
+      <div id="g-rect" class="row three">
+        <label>Length <input id="rL" type="number" inputmode="decimal" min="0" step="any" value="30"></label>
+        <label>Width <input id="rW" type="number" inputmode="decimal" min="0" step="any" value="20"></label>
+        <label>Depth <input id="rD" type="number" inputmode="decimal" min="0" step="any" value="2"></label>
+      </div>
+      <div id="g-cyl" class="row two" hidden>
+        <label>Inner diameter <input id="cd" type="number" inputmode="decimal" min="0" step="any" value="10"></label>
+        <label>Depth <input id="cD" type="number" inputmode="decimal" min="0" step="any" value="5"></label>
+      </div>
+      <div id="g-river" hidden>
+        <div class="row two">
+          <label>Length of pour <input id="vL" type="number" inputmode="decimal" min="0" step="any" value="200"></label>
+          <label>Pour depth <input id="vD" type="number" inputmode="decimal" min="0" step="any" value="5"></label>
+        </div>
+        <div class="seg" style="margin-bottom:.75rem">
+          <label><input type="radio" name="rm" value="gap" checked> I measured the gap</label>
+          <label><input type="radio" name="rm" value="mold"> Mold width minus slabs</label>
+        </div>
+        <div id="rm-gap" class="row">
+          <label>Gap widths, comma-separated <span class="hint">Measure every 20–30 cm along the pour; the average is used.</span>
+            <input id="gaps" type="text" inputmode="decimal" value="8, 10, 12"></label>
+        </div>
+        <div id="rm-mold" class="row two" hidden>
+          <label>Inner mold width <input id="mW" type="number" inputmode="decimal" min="0" step="any" value="90"></label>
+          <label>Average width of each slab, comma-separated <input id="slabs" type="text" inputmode="decimal" value="38, 42"></label>
+        </div>
+      </div>
+    </fieldset>
+    <fieldset>
+      <legend>Adjustments</legend>
+      <div class="row two">
+        <label>Embedded objects, mL <span class="hint">Volume of anything else in the pour. Measure it by water displacement.</span>
+          <input id="disp" type="number" inputmode="decimal" min="0" step="any" value="0"></label>
+        <label>Waste margin, % <sup><a href="#n2">2</a></sup> <span class="hint">Cup residue, leaks, soak-in. Shown separately.</span>
+          <input id="margin" type="number" inputmode="decimal" min="0" step="any" value="10"></label>
+      </div>
+    </fieldset>
+    <fieldset>
+      <legend>Split at your ratio</legend>
+      <div class="row three">
+        <label>Ratio
+          <select id="ratio">
+            <option>1:1</option><option>2:1</option><option>3:1</option><option>4:1</option>
+            <option value="custom">Custom</option>
+          </select>
+        </label>
+        <label>Stated
+          <select id="basis"><option value="volume">by volume</option><option value="weight">by weight</option></select>
+        </label>
+        <label id="customWrap" hidden>Custom (resin:hardener) <input id="custom" type="text" value="100:45"></label>
+      </div>
+      <div class="row two">
+        <label>Resin SG, g/mL <sup><a href="#n3">3</a></sup> <input id="sgr" type="number" inputmode="decimal" step="0.01" value="1.15"></label>
+        <label>Hardener SG, g/mL <input id="sgh" type="number" inputmode="decimal" step="0.01" value="0.95"></label>
+      </div>
+    </fieldset>
+  </form>
+
+  <section class="results" id="out" aria-live="polite"></section>
+
+  <h2>Notes</h2>
+  <ol class="fn">
+    <li id="n1">River table volume is the length × the average gap × the depth. That equals the mold volume minus the wood sitting in it. Averaging is exact for straight tapers. For a live edge, the more points you measure, the closer the estimate gets. Bark pockets and undercuts below the surface will take extra resin, and that's part of what the margin covers.</li>
+    <li id="n2">There's no standard waste margin. Common advice runs from 5 to 15%. The exact volume above is what the mold holds. The planned volume adds your margin on top. Bare wood also soaks up resin, and a seal coat brushed on first cuts both the soak-in and the bubbles that rise out of the wood.</li>
+    <li id="n3">Specific gravities only affect the gram figures. Use the numbers from your product's data sheet.</li>
+    <li>US fluid ounces and US gallons. Imperial units differ by about 4%.</li>
+  </ol>
+
+  <aside class="safety">
+    <h2>Safety</h2>
+    <ul>
+      <li>Work in a ventilated space. Wear an organic-vapour respirator, nitrile gloves, and eye protection. Uncured epoxy is a skin sensitiser, and an allergy builds with every exposure.</li>
+      <li>Runaway exotherm is a documented fire risk. A big volume usually needs several layers. Check the <a href="deep-pour.html">deep-pour planner</a> before you mix.</li>
+      <li>Not food-safe unless the specific product is certified for food contact and fully cured to its data sheet.</li>
+    </ul>
+  </aside>
+</main>
+<footer class="site-foot">CastLab calculates; it does not replace your product's technical or safety data sheet. Formulas: <a href="SPEC.md">SPEC.md</a>.</footer>
+
+<script src="assets/castlab.js"></script>
+<script>
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  var f = function (x, dp) { return x.toLocaleString(undefined, { minimumFractionDigits: dp, maximumFractionDigits: dp }); };
+  var list = function (s) { return s.split(/[,;\s]+/).filter(Boolean).map(Number); };
+  var form = $('f');
+
+  function ratioParts() {
+    var v = $('ratio').value;
+    $('customWrap').hidden = v !== 'custom';
+    if (v !== 'custom') return CastLab.MIX_PRESETS[v];
+    var p = $('custom').value.split(':');
+    if (p.length !== 2) throw new RangeError('Custom ratio must look like 100:45');
+    return [p[0], p[1]];
+  }
+
+  function volume() {
+    var shape = form.shape.value, u = $('unit').value;
+    $('g-rect').hidden = shape !== 'rect';
+    $('g-cyl').hidden = shape !== 'cyl';
+    $('g-river').hidden = shape !== 'river';
+    var common = { unit: u, displacementMl: $('disp').value || 0, marginPct: $('margin').value || 0 };
+    if (shape === 'rect') {
+      return { r: CastLab.rectangleVolume(Object.assign({ length: $('rL').value, width: $('rW').value, depth: $('rD').value }, common)), depth: $('rD').value };
+    }
+    if (shape === 'cyl') {
+      return { r: CastLab.cylinderVolume(Object.assign({ diameter: $('cd').value, depth: $('cD').value }, common)), depth: $('cD').value };
+    }
+    var m = form.rm.value;
+    $('rm-gap').hidden = m !== 'gap';
+    $('rm-mold').hidden = m !== 'mold';
+    var o = Object.assign({ length: $('vL').value, depth: $('vD').value }, common);
+    if (m === 'gap') o.gapWidths = list($('gaps').value);
+    else { o.moldWidth = $('mW').value; o.slabWidths = list($('slabs').value); }
+    return { r: CastLab.riverTableVolume(o), depth: $('vD').value };
+  }
+
+  function volCard(title, v, note) {
+    return '<div class="card"><h3>' + title + '</h3><div class="big">' + f(v.mL, 0) + ' mL</div>' +
+      '<div class="sub">' + f(v.L, 3) + ' L · ' + f(v.flOz, 1) + ' US fl oz · ' + f(v.gal, 3) + ' US gal</div>' +
+      (note ? '<div class="sub">' + note + '</div>' : '') + '</div>';
+  }
+
+  function run() {
+    try {
+      var got = volume(), r = got.r;
+      var p = ratioParts();
+      var mix = CastLab.mixRatio({
+        resinParts: p[0], hardenerParts: p[1], basis: $('basis').value,
+        sgResin: $('sgr').value, sgHardener: $('sgh').value,
+        known: { part: 'total', amount: r.planned.mL, unit: 'mL' }
+      });
+      var extra = r.meanGapCm ? 'Average gap ' + f(r.meanGapCm, 2) + ' cm' : '';
+      if (r.displacementMl) extra += (extra ? ' · ' : '') + f(r.displacementMl, 0) + ' mL displaced';
+      var depthMm = CastLab.lengthToCm(got.depth, $('unit').value) * 10;
+      $('out').innerHTML = '<div class="cards">' +
+        volCard('Exact volume', r.exact, extra) +
+        volCard('Planned (+' + f(Number(r.marginPct), 0) + '% margin)', r.planned) + '</div>' +
+        '<h2>Split of the planned volume</h2><div class="tablewrap"><table>' +
+        '<tr><th></th><th class="n">mL</th><th class="n">g</th></tr>' +
+        '<tr><td>Resin (A)</td><td class="n">' + f(mix.resin.mL, 1) + '</td><td class="n">' + f(mix.resin.g, 1) + '</td></tr>' +
+        '<tr><td>Hardener (B)</td><td class="n">' + f(mix.hardener.mL, 1) + '</td><td class="n">' + f(mix.hardener.g, 1) + '</td></tr>' +
+        '<tr><th>Total</th><th class="n">' + f(mix.total.mL, 1) + '</th><th class="n">' + f(mix.total.g, 1) + '</th></tr>' +
+        '</table></div>' +
+        '<div class="carry">' +
+        '<a href="deep-pour.html?depth=' + depthMm.toFixed(2) + '&area=' + r.areaCm2.toFixed(2) + '">Plan layers →</a>' +
+        '<a href="cost.html?ml=' + r.exact.mL.toFixed(1) + '&margin=' + encodeURIComponent(r.marginPct) + '">Cost this pour →</a>' +
+        '<a href="pigment.html?g=' + mix.total.g.toFixed(1) + '">Pigment →</a></div>';
+    } catch (e) {
+      $('out').innerHTML = '<p class="msg err">' + e.message + '</p>';
+    }
+  }
+  form.addEventListener('input', run);
+  form.addEventListener('change', run);
+  run();
+})();
+</script>
+</body>
+</html>

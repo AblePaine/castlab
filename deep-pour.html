@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Deep Pour Layer Planner — CastLab</title>
+<meta name="description" content="Split a deep epoxy pour into safe layers: layer count, depth and volume per layer, and a recoat schedule. Refuses over-depth pours.">
+<link rel="stylesheet" href="assets/castlab.css">
+</head>
+<body>
+<header class="site">
+  <a class="brand" href="index.html">CastLab</a>
+  <nav>
+    <a href="mix-ratio.html">Mix ratio</a>
+    <a href="pour-volume.html">Pour volume</a>
+    <a href="deep-pour.html" aria-current="page">Deep pour</a>
+    <a href="pigment.html">Pigment</a>
+    <a href="cost.html">Cost</a>
+  </nav>
+</header>
+<main>
+  <h1>Deep-pour planner</h1>
+  <p class="why">Epoxy gives off heat as it cures. In a thin coat that heat escapes. In a thick, heavy pour it builds on itself until the resin cracks, yellows, smokes, and in documented cases catches fire. Every product has a maximum depth per pour. This planner splits your total depth into equal layers under that limit, tells you how much to mix for each layer, and turns your recoat interval into a schedule. It won't produce a plan for a pour deeper than the product's limit.</p>
+
+  <form class="calc" id="f" novalidate>
+    <fieldset>
+      <legend>Product type <sup><a href="#n1">1</a></sup></legend>
+      <div class="seg">
+        <label><input type="radio" name="ptype" value="tabletop" checked> Tabletop / coating</label>
+        <label><input type="radio" name="ptype" value="deepPour"> Deep-pour / casting</label>
+      </div>
+    </fieldset>
+    <fieldset>
+      <div class="row two">
+        <label>Depth units
+          <select id="du"><option value="mm">mm</option><option value="in">inches</option></select>
+        </label>
+        <label>Max depth per layer <span class="hint">From your data sheet. The default is conservative.</span>
+          <input id="max" type="number" inputmode="decimal" min="0" step="any" value="6"></label>
+      </div>
+      <div class="row two">
+        <label>Total pour depth <input id="total" type="number" inputmode="decimal" min="0" step="any" value="20"></label>
+        <label>Number of layers <span class="hint">Leave blank to use the fewest safe layers.</span>
+          <input id="layers" type="number" inputmode="numeric" min="1" step="1" placeholder="auto"></label>
+      </div>
+    </fieldset>
+    <fieldset>
+      <legend>Pour footprint (for volume per layer)</legend>
+      <div class="seg" style="margin-bottom:.75rem">
+        <label><input type="radio" name="fp" value="rect" checked> Rectangle</label>
+        <label><input type="radio" name="fp" value="circ"> Circle</label>
+        <label><input type="radio" name="fp" value="area"> Area known</label>
+      </div>
+      <div class="row three">
+        <label id="fpU">Units
+          <select id="lu"><option value="cm" selected>cm</option><option value="mm">mm</option><option value="in">inches</option><option value="ft">feet</option></select>
+        </label>
+        <label id="fpA">Length <input id="fa" type="number" inputmode="decimal" min="0" step="any" value="60"></label>
+        <label id="fpB">Width <input id="fb" type="number" inputmode="decimal" min="0" step="any" value="40"></label>
+        <label id="fpC" hidden>Area, cm² <input id="fc" type="number" inputmode="decimal" min="0" step="any"></label>
+      </div>
+    </fieldset>
+    <fieldset>
+      <legend>Recoat interval <sup><a href="#n2">2</a></sup></legend>
+      <div class="row">
+        <label>Hours between layers <span class="hint">Placeholder. Replace it with the value from your data sheet.</span>
+          <input id="recoat" type="number" inputmode="decimal" min="0" step="any" value="6"></label>
+      </div>
+    </fieldset>
+  </form>
+
+  <section class="results" id="out" aria-live="polite"></section>
+
+  <h2>Notes</h2>
+  <ol class="fn">
+    <li id="n1">The defaults are 6 mm (¼ in) per layer for tabletop epoxy and 50 mm (2 in) for deep-pour epoxy. Tabletop products are usually rated for 3–6 mm per coat. Deep-pour products range from about 25 mm to more than 100 mm depending on the chemistry. Ratings assume roughly 21–24 °C. A warmer room, warmer resin, or a bigger batch all shrink your safe depth. If your data sheet rates deeper than the default, you can raise the max, and the planner will flag that you did.</li>
+    <li id="n2">Recoat windows vary by product and temperature, and there's no one right number. Tabletop systems are often recoated within a few hours to about a day, while the surface is still chemically receptive. After that window closes, scuff-sand the surface before the next coat. Deep-pour systems commonly wait 24–72 h, or until the last layer has cooled to room temperature. The 6 h and 24 h prefills are only there so the schedule has something to show.</li>
+    <li>The 1 L warning is a conservative rule of thumb, not a physical constant. Heat scales with mass, so a wide layer within the depth limit can still run hot. Depth is the hard limit. Volume is the warning sign.</li>
+  </ol>
+
+  <aside class="safety">
+    <h2>Safety</h2>
+    <ul>
+      <li>Work in a ventilated space. Wear an organic-vapour respirator, nitrile gloves, and eye protection. Uncured epoxy is a skin sensitiser, and an allergy builds with every exposure.</li>
+      <li>Runaway exotherm is a documented fire risk. Pour each layer right after mixing, keep the room at the temperature on the data sheet, and don't leave a curing pour unattended for the first hours. If a pour starts smoking, get it outside onto a non-flammable surface if you can do that safely, and don't breathe the fumes.</li>
+      <li>Not food-safe unless the specific product is certified for food contact and fully cured to its data sheet.</li>
+    </ul>
+  </aside>
+</main>
+<footer class="site-foot">CastLab calculates; it does not replace your product's technical or safety data sheet. Formulas: <a href="SPEC.md">SPEC.md</a>.</footer>
+
+<script src="assets/castlab.js"></script>
+<script>
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  var f = function (x, dp) { return x.toLocaleString(undefined, { minimumFractionDigits: dp, maximumFractionDigits: dp }); };
+  var form = $('f');
+  var q = new URLSearchParams(location.search);
+  if (q.get('depth')) { $('du').value = 'mm'; $('total').value = q.get('depth'); }
+  if (q.get('area')) { form.fp.value = 'area'; $('fc').value = q.get('area'); }
+
+  // Product type change resets max depth and recoat to that type's defaults.
+  form.addEventListener('change', function (e) {
+    if (e.target.name === 'ptype') {
+      var t = CastLab.PRODUCT_TYPES[form.ptype.value];
+      $('max').value = $('du').value === 'in' ? +(t.maxLayerMm / 25.4).toFixed(3) : t.maxLayerMm;
+      $('recoat').value = t.recoatHours;
+    }
+    if (e.target.id === 'du') {
+      // Keep the physical values; just re-express them.
+      var k = $('du').value === 'in' ? 1 / 25.4 : 25.4;
+      ['max', 'total'].forEach(function (id) { if ($(id).value) $(id).value = +($(id).value * k).toFixed(3); });
+    }
+  });
+
+  function areaCm2() {
+    var fp = form.fp.value;
+    $('fpA').hidden = $('fpU').hidden = fp === 'area';
+    $('fpB').hidden = fp !== 'rect';
+    $('fpC').hidden = fp !== 'area';
+    $('fpA').firstChild.nodeValue = fp === 'circ' ? 'Diameter ' : 'Length ';
+    if (fp === 'area') return $('fc').value === '' ? null : $('fc').value;
+    var u = $('lu').value;
+    if ($('fa').value === '' || (fp === 'rect' && $('fb').value === '')) return null;
+    var a = CastLab.lengthToCm($('fa').value, u);
+    if (fp === 'circ') return Math.PI * (a / 2) * (a / 2);
+    return a * CastLab.lengthToCm($('fb').value, u);
+  }
+
+  function hrs(h) {
+    if (h < 24) return f(h, h % 1 ? 1 : 0) + ' h';
+    var d = Math.floor(h / 24), r = h - d * 24;
+    return 'day ' + (d + 1) + (r ? ', +' + f(r, r % 1 ? 1 : 0) + ' h' : '') + ' (' + f(h, 0) + ' h)';
+  }
+
+  function run() {
+    var mm = $('du').value === 'in' ? 25.4 : 1;
+    try {
+      var r = CastLab.deepPour({
+        productType: form.ptype.value,
+        totalDepthMm: $('total').value * mm,
+        maxLayerMm: $('max').value * mm,
+        layers: $('layers').value === '' ? null : $('layers').value,
+        areaCm2: areaCm2(),
+        recoatHours: $('recoat').value === '' ? 0 : $('recoat').value
+      });
+      var warn = r.warnings.map(function (w) { return '<p class="msg warn">' + w + '</p>'; }).join('');
+      if (r.refused) {
+        $('out').innerHTML = '<p class="msg stop">Refused. ' + r.reason + '</p>' + warn;
+        return;
+      }
+      var inch = function (x) { return f(x, 1) + ' mm (' + f(x / 25.4, 3) + ' in)'; };
+      var html = '<div class="cards">' +
+        '<div class="card"><h3>Layers</h3><div class="big">' + r.layers + ' × ' + f(r.layerDepthMm, 1) + ' mm</div>' +
+        '<div class="sub">each ' + inch(r.layerDepthMm) + ' · limit ' + f(r.maxLayerMm, 1) + ' mm' +
+        (r.layers > r.minLayers ? ' · minimum is ' + r.minLayers : '') + '</div></div>';
+      if (r.layerMl != null) {
+        html += '<div class="card"><h3>Mix per layer</h3><div class="big">' + f(r.layerMl, 0) + ' mL</div>' +
+          '<div class="sub">' + f(r.layerMl / 1000, 3) + ' L · ' + f(r.layerMl / CastLab.ML_PER_US_FLOZ, 1) +
+          ' US fl oz · total ' + f(r.totalMl / 1000, 3) + ' L</div></div>';
+      } else {
+        html += '<div class="card"><h3>Mix per layer</h3><div class="sub">Enter the footprint to get the volume per layer.</div></div>';
+      }
+      html += '</div>' + warn + '<h2>Schedule</h2><div class="tablewrap"><table><tr><th>Layer</th><th>Start</th><th class="n">Surface at</th></tr>';
+      r.schedule.forEach(function (s) {
+        html += '<tr><td>' + s.layer + '</td><td>' + (s.startHour === 0 ? 'now' : hrs(s.startHour)) + '</td><td class="n">' + f(s.topMm, 1) + ' mm</td></tr>';
+      });
+      html += '</table></div><p class="sub">Then leave the piece to full cure for as long as the data sheet says before you demold or put it into use.</p>';
+      if (r.layerMl != null) {
+        html += '<div class="carry"><a href="mix-ratio.html?ml=' + r.layerMl.toFixed(1) + '">Mix one layer →</a>' +
+          '<a href="cost.html?ml=' + r.totalMl.toFixed(1) + '&layers=' + r.layers + '">Cost this project →</a></div>';
+      }
+      $('out').innerHTML = html;
+    } catch (e) {
+      $('out').innerHTML = '<p class="msg err">' + e.message + '</p>';
+    }
+  }
+  form.addEventListener('input', run);
+  form.addEventListener('change', run);
+  run();
+})();
+</script>
+</body>
+</html>
