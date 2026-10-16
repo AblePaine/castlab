@@ -1,6 +1,6 @@
-# CastLab — Engine Specification
+# EpoxyBench — Engine Specification
 
-CastLab is an epoxy resin casting reference: five calculators that take what you know and return an exact answer. This file is the source of truth for every formula. The code in `assets/castlab.js` carries the same derivations as comments, and `tests/castlab.test.js` checks each one against hand-worked values.
+EpoxyBench is an epoxy resin casting reference: five calculators that take what you know and return an exact answer. This file is the source of truth for every formula. The code in `assets/castlab.js` carries the same derivations as comments, and `tests/castlab.test.js` checks each one against hand-worked values.
 
 **House rules**
 
@@ -172,7 +172,7 @@ Rates are also reported per L and per US gal so prices from different sellers ca
 - **Ventilation and PPE:** work in a ventilated space and wear an organic-vapour respirator, nitrile gloves, and eye protection. Uncured epoxy is a skin sensitiser, and allergy builds with exposure.
 - **Exotherm:** runaway exotherm can crack, yellow, smoke, or ignite a pour. Never pour deeper than the product's rating, and don't leave a large mixed batch in the cup.
 - **Food contact:** not food-safe unless the specific product is certified for food contact **and** has fully cured according to its data sheet.
-- CastLab calculates. It doesn't replace the manufacturer's TDS or SDS.
+- EpoxyBench calculates. It doesn't replace the manufacturer's TDS or SDS.
 
 ## Open questions for review
 

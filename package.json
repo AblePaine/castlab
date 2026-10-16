@@ -1,7 +1,7 @@
 {
   "name": "castlab",
   "private": true,
-  "description": "CastLab — epoxy resin casting calculators. Static site; no build step. package.json exists only to run the test suite.",
+  "description": "EpoxyBench — epoxy resin casting calculators. Static site; no build step. package.json exists only to run the test suite.",
   "scripts": {
     "test": "node --test tests/*.test.js"
   }
