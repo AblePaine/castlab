@@ -1,6 +1,6 @@
 # EpoxyBench — Engine Specification
 
-EpoxyBench is an epoxy resin casting reference: five calculators that take what you know and return an exact answer. This file is the source of truth for every formula. The code in `assets/castlab.js` carries the same derivations as comments, and `tests/castlab.test.js` checks each one against hand-worked values.
+EpoxyBench is an epoxy resin casting reference: six calculators that take what you know and return an exact answer. This file is the source of truth for every formula. The code in `assets/castlab.js` carries the same derivations as comments, and `tests/castlab.test.js` checks each one against hand-worked values.
 
 **House rules**
 
@@ -18,6 +18,7 @@ pour-volume.html      engine 2
 deep-pour.html        engine 3
 pigment.html          engine 4
 cost.html             engine 5
+cure-time.html        engine 6
 assets/castlab.js     formula module (browser global CastLab + node module)
 assets/castlab.css    shared styles, mobile-first
 tests/castlab.test.js node:test suite — run `npm test`
@@ -164,6 +165,27 @@ Both percentages are reported whichever basis is chosen. **CONTESTED:** pigment 
 Rates are also reported per L and per US gal so prices from different sellers can be compared.
 
 **Flag:** "pack size" means the **combined A + B** volume, so a "1 gallon kit" is 1 gal of mixed epoxy. Some kits are named after the size of Part A only, or sold by weight. If yours is, enter the actual combined volume.
+
+---
+
+## 6. Cure time vs temperature
+
+**Inputs:** one cure milestone time from the product's data sheet (working time, tack-free, demold, or full cure, in hours), the reference temperature that time assumes (default 23 °C — data sheets usually state 21–25 °C), and the shop temperature.
+
+**Derivation.** Cure speed is set by the reaction rate. The working model is the Q10 rule of thumb: the rate roughly doubles per 10 °C rise.
+
+- `rate(T) = rate(T_ref) · 2^((T − T_ref) / 10)`
+- `time(T) = time(T_ref) · 2^((T_ref − T) / 10)`
+
+So 24 h at 23 °C becomes ~12 h at 33 °C and ~48 h at 13 °C. The same factor scales any single milestone. Temperature conversion is exact: `C = (F − 32) × 5/9`.
+
+**Flags**
+
+- **Q10 = 2 is CONTESTED.** Real systems follow Arrhenius kinetics; the effective doubling interval varies by chemistry (roughly 8–13 °C in practice) and drifts far from the reference temperature. The output is a planning estimate, never a promise — the page says so, and flags any estimate more than 20 °C from the data-sheet temperature as a rough extrapolation.
+- **Cold floor (warning, ~15 °C).** Below about 15 °C most epoxies cure very slowly, and some amine-cured systems blush or never reach full properties. Every product has a minimum application temperature on its data sheet; that number governs. The engine warns rather than refusing, because the floor is product-specific — but it never presents a cold-shop number without the warning attached.
+- **Heat (warning, ~30 °C).** Above about 30 °C working time shrinks sharply and thick pours run hotter. The estimator warns and defers to engine 3's depth limits.
+- **The temperature is the resin's, not the room's.** A cold workpiece cures at workpiece temperature for the first hours, and a thick pour's core self-heats above room temperature. Both effects are footnoted on the page.
+- Temperatures outside −20 to 60 °C are refused as input errors — outside anything a shop or a data sheet plausibly means here.
 
 ---
 

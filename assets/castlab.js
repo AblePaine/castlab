@@ -1,5 +1,5 @@
 /*
- * CastLab formula module — the five engines behind every calculator page.
+ * CastLab formula module — the six engines behind every calculator page.
  *
  * Pure functions, no DOM. Works in the browser (window.CastLab) and in node
  * (require('./assets/castlab.js')) so tests/ exercise the exact code the
@@ -448,6 +448,85 @@
     };
   }
 
+  // =======================================================================
+  // 6. CURE TIME vs TEMPERATURE
+  // =======================================================================
+  // A data sheet states cure milestones (working time, tack-free, demold,
+  // full cure) at one reference temperature, usually 21-25 °C. The shop is
+  // rarely that temperature, and cure speed is set by the reaction rate,
+  // which climbs steeply with temperature.
+  //
+  // The working model is the Q10 rule of thumb: the reaction rate roughly
+  // doubles for every 10 °C rise.
+  //
+  //   rate(T) = rate(T_ref) · 2^((T - T_ref) / 10)
+  //   time(T) = time(T_ref) · 2^((T_ref - T) / 10)
+  //
+  // So a milestone quoted as 24 h at 23 °C takes about 12 h at 33 °C and
+  // about 48 h at 13 °C. Real systems follow Arrhenius kinetics, not a
+  // tidy power of two, and the effective exponent drifts with chemistry
+  // and with distance from T_ref — CONTESTED, footnoted on the page
+  // (SPEC §6). The output is a planning estimate, never a promise.
+  //
+  // The model scales any single milestone; it does not know the product's
+  // minimum application temperature, so cold and hot shops get warnings
+  // rather than a silently scaled number.
+  var CURE_Q10 = 2;
+  var DEFAULT_CURE_REF_TEMP_C = 23;
+  var CURE_COLD_WARN_C = 15;
+  var CURE_HOT_WARN_C = 30;
+  var CURE_EXTRAPOLATION_DT_C = 20;
+  var CURE_TEMP_MIN_C = -20;
+  var CURE_TEMP_MAX_C = 60;
+
+  /** Temperature in °C from °C or °F. Exact: C = (F - 32) * 5/9. */
+  function tempToC(value, unit) {
+    oneOf(unit, ['C', 'F'], 'temperature unit');
+    var v = num(value, 'temperature');
+    return unit === 'F' ? (v - 32) * 5 / 9 : v;
+  }
+
+  function cureTime(o) {
+    var tds = pos(o.tdsHours, 'cure time');
+    var ref = o.refTempC == null ? DEFAULT_CURE_REF_TEMP_C : num(o.refTempC, 'reference temperature');
+    var shop = num(o.shopTempC, 'shop temperature');
+    var temps = [['reference', ref], ['shop', shop]];
+    for (var i = 0; i < temps.length; i++) {
+      if (temps[i][1] < CURE_TEMP_MIN_C || temps[i][1] > CURE_TEMP_MAX_C) {
+        throw new RangeError(temps[i][0] + ' temperature is outside the -20 to 60 °C range this estimator covers');
+      }
+    }
+
+    var timeFactor = Math.pow(CURE_Q10, (ref - shop) / 10);
+    var hours = tds * timeFactor;
+
+    var warnings = [];
+    if (shop < CURE_COLD_WARN_C) {
+      warnings.push('Below about ' + CURE_COLD_WARN_C + ' °C most epoxies cure very slowly, and some ' +
+        'systems never reach full properties. Check your product\'s minimum application temperature. ' +
+        'Warming the room and the unmixed resin helps more than simply waiting longer.');
+    }
+    if (shop > CURE_HOT_WARN_C) {
+      warnings.push('Above about ' + CURE_HOT_WARN_C + ' °C working time shrinks fast and thick pours ' +
+        'run hotter. Mix smaller batches, and let the deep-pour planner\'s depth limits govern.');
+    }
+    if (Math.abs(shop - ref) > CURE_EXTRAPOLATION_DT_C) {
+      warnings.push('Your shop is more than ' + CURE_EXTRAPOLATION_DT_C + ' °C from the data-sheet ' +
+        'temperature, so this is a rough extrapolation of the rule of thumb, not a measurement.');
+    }
+
+    return {
+      hours: hours,
+      days: hours / 24,
+      timeFactor: timeFactor,
+      rateFactor: 1 / timeFactor,
+      tdsHours: tds,
+      refTempC: ref,
+      shopTempC: shop,
+      warnings: warnings
+    };
+  }
+
   function round(x, dp) {
     var f = Math.pow(10, dp);
     return Math.round(x * f) / f;
@@ -464,6 +543,8 @@
     ML_PER: ML_PER,
     DEFAULT_SG_RESIN: DEFAULT_SG_RESIN,
     DEFAULT_SG_HARDENER: DEFAULT_SG_HARDENER,
+    CURE_Q10: CURE_Q10,
+    DEFAULT_CURE_REF_TEMP_C: DEFAULT_CURE_REF_TEMP_C,
     EXOTHERM_WARN_ML: EXOTHERM_WARN_ML,
     PIGMENT_HARD_CAP_PCT: PIGMENT_HARD_CAP_PCT,
     MIX_PRESETS: MIX_PRESETS,
@@ -472,6 +553,7 @@
     // helpers
     lengthToCm: lengthToCm,
     volumeToMl: volumeToMl,
+    tempToC: tempToC,
     volumeBreakdown: volumeBreakdown,
     round: round,
     // engines
@@ -481,6 +563,7 @@
     riverTableVolume: riverTableVolume,
     deepPour: deepPour,
     pigment: pigment,
-    projectCost: projectCost
+    projectCost: projectCost,
+    cureTime: cureTime
   };
 });

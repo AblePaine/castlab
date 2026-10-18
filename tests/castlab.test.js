@@ -248,3 +248,57 @@ test('cost: per-gallon rate derived from a per-liter price', () => {
   const r = C.projectCost({ volumeMl: 1000, price: 10, packSize: 1, packUnit: 'L' });
   close(r.perGal, 37.85411784, 1e-9);
 });
+
+// ---------------------------------------------------------------------------
+// 6. Cure time
+test('cure: at the reference temperature nothing changes', () => {
+  const r = C.cureTime({ tdsHours: 24, refTempC: 23, shopTempC: 23 });
+  close(r.hours, 24);
+  close(r.timeFactor, 1);
+  close(r.rateFactor, 1);
+  assert.equal(r.warnings.length, 0);
+});
+
+test('cure: default reference temperature is 23 °C', () => {
+  const r = C.cureTime({ tdsHours: 24, shopTempC: 23 });
+  close(r.hours, 24);
+  close(r.refTempC, 23);
+});
+
+test('cure: 10 °C warmer halves the time, 10 °C colder doubles it', () => {
+  close(C.cureTime({ tdsHours: 24, refTempC: 23, shopTempC: 33 }).hours, 12);
+  close(C.cureTime({ tdsHours: 24, refTempC: 23, shopTempC: 13 }).hours, 48);
+});
+
+test('cure: 5 °C warmer scales by 1/√2', () => {
+  // 24 × 2^(−0.5) = 24 / 1.41421356… = 16.9705627…
+  close(C.cureTime({ tdsHours: 24, refTempC: 23, shopTempC: 28 }).hours, 24 / Math.SQRT2, 1e-9);
+  close(C.cureTime({ tdsHours: 24, refTempC: 23, shopTempC: 28 }).rateFactor, Math.SQRT2, 1e-9);
+});
+
+test('cure: tempToC is the exact Fahrenheit conversion', () => {
+  close(C.tempToC(32, 'F'), 0);
+  close(C.tempToC(212, 'F'), 100);
+  close(C.tempToC(73.4, 'F'), 23); // (73.4 − 32) × 5/9 = 23 exactly
+  close(C.tempToC(23, 'C'), 23);
+  assert.throws(() => C.tempToC(300, 'K'), RangeError);
+});
+
+test('cure: cold, hot, and extrapolation warnings fire on the right side', () => {
+  const cold = C.cureTime({ tdsHours: 24, refTempC: 23, shopTempC: 10 });
+  assert.ok(cold.warnings.some((w) => /Below about 15 °C/.test(w)));
+  const hot = C.cureTime({ tdsHours: 24, refTempC: 23, shopTempC: 35 });
+  assert.ok(hot.warnings.some((w) => /Above about 30 °C/.test(w)));
+  assert.ok(!hot.warnings.some((w) => /extrapolation/.test(w))); // ΔT = 12, within range
+  const far = C.cureTime({ tdsHours: 24, refTempC: 23, shopTempC: 50 });
+  assert.ok(far.warnings.some((w) => /extrapolation/.test(w))); // ΔT = 27
+  const mild = C.cureTime({ tdsHours: 24, refTempC: 23, shopTempC: 20 });
+  assert.equal(mild.warnings.length, 0);
+});
+
+test('cure: rejects bad input', () => {
+  assert.throws(() => C.cureTime({ tdsHours: 0, shopTempC: 20 }), RangeError);
+  assert.throws(() => C.cureTime({ tdsHours: 24, shopTempC: 100 }), RangeError);
+  assert.throws(() => C.cureTime({ tdsHours: 24, refTempC: -30, shopTempC: 20 }), RangeError);
+  assert.throws(() => C.cureTime({ tdsHours: 24 }), RangeError); // shop temperature required
+});
