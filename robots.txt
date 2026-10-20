@@ -1,0 +1,5 @@
+# EpoxyBench — every crawler is welcome, search and AI/agent crawlers alike.
+User-agent: *
+Allow: /
+
+Sitemap: https://epoxybench.com/sitemap.xml
